@@ -65,7 +65,9 @@ int getWindowSize(int* rows, int* cols){
 	//get the size of the terminal by simply calling ioctl(), which will return -1 when fail;
 	//with TIOCGWINSZ request -> Terminal Input/Output Control Get WINdow SiZe;
 	//we also ignore the case of returning 0, because it is s useless value;
-	if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws)==-1 || ws.ws_col==0){
+	if(1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws)==-1 || ws.ws_col==0){
+		if(write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12)!=12) return -1;
+		editorReadKey();
 		return -1;
 	}else{
 		*cols=ws.ws_col;
@@ -76,7 +78,7 @@ int getWindowSize(int* rows, int* cols){
 
 /****output****/
 void editorDrawRows(){
-	for(int i=0;i<24;i++){
+	for(int i=0;i<E.num_rows;i++){
 		write(STDOUT_FILENO, "~\r\n",3);
 	}
 }
@@ -108,19 +110,17 @@ void editorProcessKeypress(){
 }
 
 /****init****/
+void initEditor(){
+	if(getWindowSize(&E.num_rows, &E.num_cols)==-1){
+		die("getWindowSize");
+	}
+}
 int main(){
 	enableRawMode();
+	initEditor();
 	while(1){
-		char temp;
-		if(read(STDIN_FILENO, &temp, 1)==-1 && errno !=EAGAIN){
-			die("read");
-		}
-		if(iscntrl(temp)){
-			printf("%d\r\n", temp);
-		}else{
-			printf("%d ('%c')\r\n", temp, temp);
-		}
-		if(temp==CTRL_KEY('q')) break;//set control+Q to quit;
+		editorRefreshScreen();
+		editorProcessKeypress();
 	}
 	return 0;
 }
